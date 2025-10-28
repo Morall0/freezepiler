@@ -1,5 +1,5 @@
-# freezpiler
-Compiler frontend and backend.
+# freezepiler
+C Compiler frontend and backend.
 
 ## How to run
 arguments: \<source_file_path\> | \<-s source_str\>
