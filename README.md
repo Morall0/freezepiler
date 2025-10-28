@@ -1,14 +1,13 @@
-# freezepiler
-C Compiler frontend and backend.
+# Freezepiler - Compilers Project (g5.07)
 
-## How to run
-arguments: \<source_file_path\> | \<-s source_str\>
-examples of execution:
+C Compiler frontend and backend for Compilers course.
 
-~~~ bash
-$ ./lexer path/to/program.c
-$ ./lexer -s 'printf("hello world!");'
-~~~
+**The main project code is not located in this root directory.**
+
+Please follow the link below to view the project's main `README.md`, which includes build and usage instructions.
+
+## [Click here to view the project](unam/fi/compilers/g5/07/)
 
 ## Documentation
-- [Lexer Report](./docs/Team07-Compilers-Lexer.pdf)
+
+- [Lexer Report](unam/fi/compilers/g5/07/doc/Team07-Compilers-Lexer.pdf)

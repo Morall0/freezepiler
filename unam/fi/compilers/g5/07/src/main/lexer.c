@@ -418,7 +418,6 @@ char *readFile(const char *source_file_path)
 
     // Allocate the memory for the file content
     char *buffer = (char *)malloc(fileSize);
-    size_t bytesRead = fread(buffer, sizeof(char), fileSize, f);
 
     fclose(f);
     return buffer;
