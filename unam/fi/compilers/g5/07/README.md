@@ -11,7 +11,7 @@ Once there, run the following command to build the project:
 $ make 
 ~~~
 
-This will create the executable inside the `build/` directory.
+This will create the executable inside the `bin/` directory.
 
 ## How to run
 
@@ -21,8 +21,8 @@ After compiling, you can run the executable from the same root directory. The pr
 
 ~~~ bash
 # Example 1: path to a file
-$ ./build/lexer path/to/program.c
+$ ./bin/lexer path/to/program.c
 
 # Example 2: string
-$ ./build/lexer -s 'printf("hello world!");'
+$ ./bin/lexer -s 'printf("hello world!");'
 ~~~
