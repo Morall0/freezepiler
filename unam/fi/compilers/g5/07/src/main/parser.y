@@ -11,17 +11,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Prototipo del lexer (tu lexer.c) */
+//En esta parte se introduce nuestro analizador lexico
 extern int yylex();
 
-/* Prototipo de la función de error (definida al final) */
+//Esta es la funcion de error por si el paser falla
 void yyerror(const char *s);
 
-/* * Variable global para el Nro de línea. 
- * ¡Asegúrate de definirla ('int yylineno = 1;') 
+/* * Variable global para el Nro de línea.
+ * ¡Asegúrate de definirla ('int yylineno = 1;')
  * y actualizarla en tu lexer.c!
  */
-extern int yylineno; 
+//Variable global para indicar el numero de linea
+extern int yylineno;
 %}
 
 /* * ------------------------------------------------------------------
@@ -30,50 +31,74 @@ extern int yylineno;
  */
 
 /* Define los tipos de datos que pueden tener los símbolos */
+
+//En esta parte se define el tipo de dato que se utiliza en los
+//elementos de la pila de Bison
 %union {
   int intVal;
   float floatVal;
   char* strVal;
 }
 
-/* --- Palabras Clave --- */
-/* Tipos */
+//KEYWORDS
+//Definimos los diferentes tokens que se puede obtener del lexer que pertenecen a
+//los keywords
+
+//Palabras clave para los tipos de datos
 %token T_INT T_FLOAT T_CHAR T_VOID T_DOUBLE T_LONG T_SHORT T_SIGNED T_UNSIGNED
 %token T_STRUCT T_UNION T_ENUM
 %token T_CONST T_VOLATILE
 %token T_TYPEDEF
 
-/* Control de Flujo */
+//Palabras clave para las estructuras de control
 %token T_IF T_ELSE T_WHILE T_FOR T_DO T_SWITCH T_CASE T_DEFAULT
 %token T_BREAK T_CONTINUE T_RETURN T_GOTO
 
-/* Otros */
+//Otras palabras clave
 %token T_AUTO T_REGISTER T_STATIC T_EXTERN
 %token T_SIZEOF
 
-/* --- Literales (con valor) --- */
+//IDENTIFIERS
+// La parte entre <> antes del nombre del token es el tipo de dato definido antes en union
 %token <strVal> T_ID
+
+//CONSTANTS
 %token <intVal> T_ENTERO
-%token <floatVal> T_NUMERO    /* Para floats y doubles */
+%token <floatVal> T_NUMERO
+
+//LITERALS
 %token <strVal> T_CADENA
 %token <strVal> T_CARACTER
 
-/* --- Operadores y Puntuadores --- */
+//PUNCTUATORS
+//parentesis
 %token T_LPAREN T_RPAREN
+//llaves
 %token T_LBRACE T_RBRACE
+//corchetes
 %token T_LBRACKET T_RBRACKET
+//punto y coma  & coma
 %token T_SEMICOLON T_COMMA
+//punto & flecha
 %token T_DOT T_ARROW
+//simbolo de interrogacion & dos puntos
 %token T_QUESTION T_COLON
 
-/* Asignación */
+//OPERATORS
+//operadores de asignacion
+// =  &   +=    &     -=      &    *=    &    /=
 %token T_ASSIGN T_ASSIGN_PLUS T_ASSIGN_MINUS T_ASSIGN_STAR T_ASSIGN_SLASH
+
+// %=    &    <<=   &   >>=
 %token T_ASSIGN_PERCENT T_ASSIGN_LSHIFT T_ASSIGN_RSHIFT
+
+//  &=   &   |=     &    ^=
 %token T_ASSIGN_AND T_ASSIGN_OR T_ASSIGN_XOR
 
-/* Operadores */
+//   +    -    *     /     %
 %token T_PLUS T_MINUS T_STAR T_SLASH T_PERCENT
 %token T_INC T_DEC /* ++ -- */
+//   ==   &   !=    &   <    &   <=    &   >    &   >=
 %token T_EQ T_NEQ T_LT T_LE T_GT T_GE
 %token T_AND T_OR  /* && || */
 %token T_AMPERSAND /* & */
@@ -89,55 +114,57 @@ extern int yylineno;
  * De MENOR precedencia (arriba) a MAYOR (abajo).
  */
 
-/* Nivel 1 (Bajo) - Coma */
+// La sentencia %left indica que la asociatividad es de izquierda a derecha
+//La sentencia %right indica que la asociatividad es de derecha a izquierda
+ 
+// La coma es la de menor precedencia
 %left T_COMMA
-
-/* Nivel 2 - Asignación (Asociatividad Derecha) */
+//Despues van las asignaciones
 %right T_ASSIGN T_ASSIGN_PLUS T_ASSIGN_MINUS T_ASSIGN_STAR T_ASSIGN_SLASH
 %right T_ASSIGN_PERCENT T_ASSIGN_LSHIFT T_ASSIGN_RSHIFT
 %right T_ASSIGN_AND T_ASSIGN_OR T_ASSIGN_XOR
 
-/* Nivel 3 - Ternario (Asociatividad Derecha) */
+//Despues van ?  &  :
 %right T_QUESTION T_COLON
 
-/* Nivel 4 - Lógico */
+//Despues van las sentencias logicas || ,  &&
 %left T_OR
 %left T_AND
 
-/* Nivel 5 - Bitwise OR, XOR, AND */
+//Despues va   | ,  ^   ,   &   
 %left T_PIPE
 %left T_CARET
 %left T_AMPERSAND
 
-/* Nivel 6 - Igualdad */
+//Despues va ==   !=
 %left T_EQ T_NEQ
 
-/* Nivel 7 - Relacional */
+//Despes va   <   <=   >   >=
 %left T_LT T_LE T_GT T_GE
 
-/* Nivel 8 - Desplazamiento de Bits */
+//Despues va    <<   >>
 %left T_LSHIFT T_RSHIFT
 
-/* Nivel 9 - Aditivo */
+//Despues va +    -
 %left T_PLUS T_MINUS
 
-/* Nivel 10 - Multiplicativo */
+//Despues va    *    /    %    
 %left T_STAR T_SLASH T_PERCENT
 
-/* Nivel 11 - Unario (Asociatividad Derecha) */
+//Despues va  ++    --    !      ~    negacion numerica ( -x  )   sizeof
 %right T_INC T_DEC T_NOT T_TILDE T_UMINUS T_SIZEOF
 
-/* * Nivel 11.5 - Solución al "Dangling Else"
- * T_ELSE tiene mayor precedencia que T_IFX,
- * forzando a 'else' a asociarse con el 'if' más cercano.
- */
+//Precedencia para solucionar un dangling else
+//nonassoc significa que un token no puede asociarse con otros del mismo tipo
+//Al poner esta precedenia donde el else es mayor que el if el else siempre se asociara
+//con el if mas cercano
 %nonassoc T_IFX
 %nonassoc T_ELSE
 
-/* Nivel 12 (Alto) - Postfijo */
+//Despues sigue    [    ]    (    )     .    ->
 %left T_LBRACKET T_RBRACKET T_LPAREN T_RPAREN T_DOT T_ARROW
 
-/* Símbolo inicial */
+//Y el que tiene mayor precedencia es el simbolo inicial
 %start programa
 
 %%
@@ -247,7 +274,7 @@ expr_opcional:
 
 /* --- Sentencias de Control --- */
 
-/* * SOLUCIÓN: Regla 'if' con %prec T_IFX 
+/* * SOLUCIÓN: Regla 'if' con %prec T_IFX
  * para resolver la ambigüedad del 'dangling else'.
  */
 if_sent:
@@ -285,10 +312,10 @@ expr:
   | expr T_ASSIGN_AND expr
   | expr T_ASSIGN_OR expr
   | expr T_ASSIGN_XOR expr
-    
+
     /* Ternario */
   | expr T_QUESTION expr T_COLON expr
-    
+
     /* Lógicos y Bitwise */
   | expr T_OR expr
   | expr T_AND expr
@@ -303,14 +330,14 @@ expr:
   | expr T_GE expr
   | expr T_LSHIFT expr
   | expr T_RSHIFT expr
-    
+
     /* Aritméticos */
   | expr T_PLUS expr
   | expr T_MINUS expr
   | expr T_STAR expr
   | expr T_SLASH expr
   | expr T_PERCENT expr
-    
+
     /* Unarios (con %prec T_UMINUS para - y +) */
   | T_MINUS expr %prec T_UMINUS
   | T_PLUS expr %prec T_UMINUS
@@ -324,13 +351,13 @@ expr:
   | T_STAR expr      /* Desreferencia (ej. *p) */
   | T_SIZEOF expr
   | T_SIZEOF T_LPAREN tipo_specifier T_RPAREN
-    
+
     /* Postfijos / Acceso */
   | expr T_LBRACKET expr T_RBRACKET
   | expr T_LPAREN lista_args_opt T_RPAREN
   | expr T_DOT T_ID
   | expr T_ARROW T_ID
-    
+
     /* Primitivos */
   | T_LPAREN expr T_RPAREN
   | T_ID
