@@ -360,7 +360,7 @@ lista_args:
  * Usa 'yylineno' (definida en tu lexer.c) para reportar la línea.
  */
 void yyerror(const char *s) {
-    fprintf(stderr, "Error de sintaxis en línea %d: %s\n", yylineno, s);
+    fprintf(stderr, "Syntax error in line %d: %s\n", yylineno, s);
 }
 
 /*

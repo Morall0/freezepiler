@@ -3,7 +3,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
-#include "token.h"
+#include "parser.tab.h"
+#include <assert.h>
 
 typedef struct
 {
@@ -13,19 +14,7 @@ typedef struct
 
 Scanner scanner;
 
-// Return the string corresponding to the TokenType
-char *getTokenTypeString(int token_index)
-{
-    char *token_map[8] = {"KEYWORD",
-                          "IDENTIFIER",
-                          "PUNCTUATOR",
-                          "OPERATOR",
-                          "CONST",
-                          "LITERAL",
-                          "END_OF_FILE",
-                          "NOT_A_TOKEN"};
-    return token_map[token_index];
-}
+int yylineno = 1;
 
 // Initialize the scanner
 void initScanner(const char *source_code)
@@ -34,19 +23,11 @@ void initScanner(const char *source_code)
     scanner.current = source_code;
 }
 
-// Return a token of the given type
-token createToken(TokenType type)
-{
-    token t;
-    t.type = type;
-
+void saveYYVal() {
     int len = (int)(scanner.current - scanner.start); // Calculate the length of the lexeme
-    char *lexeme = (char *)malloc(len + 1);
-    strncpy(lexeme, scanner.start, len); // Copy the lexeme
-    lexeme[len] = '\0';                  // Add the end of string character
-
-    t.lexeme = lexeme;
-    return t;
+    yylval.strVal = (char *)malloc(len + 1);
+    strncpy(yylval.strVal, scanner.start, len);
+    yylval.strVal[len] = '\0';
 }
 
 // Return a boolean if the lexeme match with the given string
@@ -59,8 +40,8 @@ bool matchStr(const char *start, int len, const char *str)
     return memcmp(start, str, len) == 0;
 }
 
-// Return a TokenType: KEYWORD or a IDENTIFIER
-TokenType lookupKeyword(const char *start, const char *end)
+// Return an int corresponding to the keyword or identifier
+int lookupKeyword(const char *start, const char *end)
 {
     int len = (int)(end - start);
 
@@ -69,182 +50,284 @@ TokenType lookupKeyword(const char *start, const char *end)
     {
     case 'a':
         if (matchStr(start, len, "auto"))
-            return KEYWORD;
+            return T_AUTO;
         break;
     case 'b':
         if (matchStr(start, len, "break"))
-            return KEYWORD;
+            return T_BREAK;
         break;
     case 'c':
-        if (matchStr(start, len, "case") ||
-            matchStr(start, len, "char") ||
-            matchStr(start, len, "const") ||
-            matchStr(start, len, "continue"))
-            return KEYWORD;
+        if (matchStr(start, len, "case"))
+            return T_CASE;
+        if (matchStr(start, len, "char"))
+            return T_CHAR;
+        if (matchStr(start, len, "const"))
+            return T_CONST;
+        if (matchStr(start, len, "continue"))
+            return T_CONTINUE;
         break;
     case 'd':
-        if (matchStr(start, len, "default") ||
-            matchStr(start, len, "do") ||
-            matchStr(start, len, "double"))
-            return KEYWORD;
+        if (matchStr(start, len, "default"))
+            return T_DEFAULT;
+        if (matchStr(start, len, "do"))
+            return T_DO;
+        if (matchStr(start, len, "double"))
+            return T_DOUBLE;
         break;
     case 'e':
-        if (matchStr(start, len, "else") ||
-            matchStr(start, len, "enum") ||
-            matchStr(start, len, "extern"))
-            return KEYWORD;
+        if (matchStr(start, len, "else"))
+            return T_ELSE;
+        if (matchStr(start, len, "enum"))
+            return T_ENUM;
+        if (matchStr(start, len, "extern"))
+            return T_EXTERN;
         break;
     case 'f':
-        if (matchStr(start, len, "float") ||
-            matchStr(start, len, "for"))
-            return KEYWORD;
+        if (matchStr(start, len, "float"))
+            return T_FLOAT;
+        if (matchStr(start, len, "for"))
+            return T_FOR;
         break;
     case 'g':
         if (matchStr(start, len, "goto"))
-            return KEYWORD;
+            return T_GOTO;
         break;
     case 'i':
-        if (matchStr(start, len, "if") ||
-            matchStr(start, len, "int"))
-            return KEYWORD;
+        if (matchStr(start, len, "if"))
+            return T_IF;
+        if (matchStr(start, len, "int"))
+            return T_INT;
         break;
     case 'l':
         if (matchStr(start, len, "long"))
-            return KEYWORD;
+            return T_LONG;
         break;
     case 'r':
-        if (matchStr(start, len, "register") ||
-            matchStr(start, len, "return"))
-            return KEYWORD;
+        if (matchStr(start, len, "register"))
+            return T_REGISTER;
+        if (matchStr(start, len, "return"))
+            return T_RETURN;
         break;
     case 's':
-        if (matchStr(start, len, "short") ||
-            matchStr(start, len, "signed") ||
-            matchStr(start, len, "sizeof") ||
-            matchStr(start, len, "static") ||
-            matchStr(start, len, "struct") ||
-            matchStr(start, len, "switch"))
-            return KEYWORD;
+        if (matchStr(start, len, "short"))
+            return T_SHORT;
+        if (matchStr(start, len, "signed"))
+            return T_SIGNED;
+        if (matchStr(start, len, "sizeof"))
+            return T_SIZEOF;
+        if (matchStr(start, len, "static"))
+            return T_STATIC;
+        if (matchStr(start, len, "struct"))
+            return T_STRUCT;
+        if (matchStr(start, len, "switch"))
+            return T_SWITCH;
         break;
     case 't':
         if (matchStr(start, len, "typedef"))
-            return KEYWORD;
+            return T_TYPEDEF;
         break;
     case 'u':
         if (matchStr(start, len, "union") ||
             matchStr(start, len, "unsigned"))
-            return KEYWORD;
+            return T_UNSIGNED;
         break;
     case 'v':
-        if (matchStr(start, len, "void") ||
-            matchStr(start, len, "volatile"))
-            return KEYWORD;
+        if (matchStr(start, len, "void"))
+                return T_VOID;
+        if (matchStr(start, len, "volatile"))
+            return T_VOLATILE;
         break;
     case 'w':
         if (matchStr(start, len, "while"))
-            return KEYWORD;
+            return T_WHILE;
         break;
     }
 
     // If is not a keyword, is an identifier
-    return IDENTIFIER;
+    return T_ID;
 }
 
-TokenType lookupPunctuator(const char *c)
+int lookupPunctuator(const char *c)
 {
-    TokenType type = NOT_A_TOKEN;
     switch (c[0])
     {
-    // PUNCTUATORS
-    case '(':
-    case ')':
-    case '{':
-    case '}':
-    case '[':
-    case ']':
-    case ';':
-    case ',':
-    case ':':
-    case '?':
-        type = PUNCTUATOR;
-        break;
-    // OPERATORS applying lookeaheads
-    case '=':
-        if (c[1] == '=')
+        // OPERATORS AND PUNCTUATORS
+        case '(': 
+            scanner.current++; 
+            return T_LPAREN;
+        case ')':
+            scanner.current++; 
+            return T_RPAREN;
+        case '{':
+            scanner.current++; 
+            return T_LBRACE;
+        case '}': 
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '+':
-        if (c[1] == '+' || c[1] == '=')
+            return T_RBRACE;
+        case '[': 
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '-':
-        if (c[1] == '-' || c[1] == '=' || c[1] == '>')
+            return T_LBRACKET;
+        case ']': 
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '*':
-        if (c[1] == '=')
+            return T_RBRACKET;
+        case ';': 
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '/':
-        if (c[1] == '=')
+            return T_SEMICOLON;
+        case ',': 
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '%':
-        if (c[1] == '=')
+            return T_COMMA;
+        case ':': 
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '&':
-        if (c[1] == '&' || c[1] == '=')
+            return T_COLON;
+        case '?': 
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '|':
-        if (c[1] == '|' || c[1] == '=')
+            return T_QUESTION;
+        case '.': 
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '!':
-        if (c[1] == '=')
+            return T_DOT;
+        case '=':
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '^':
-        if (c[1] == '=')
+            if (*scanner.current == '=') 
+            {
+                scanner.current++; 
+                return T_EQ; 
+            }
+            return T_ASSIGN;
+        case '!':
             scanner.current++;
-        type = OPERATOR;
-        break;
-    case '~':
-        type = OPERATOR;
-        break;
-    case '<':
-        if (c[1] == '<' || c[1] == '=')
-        {
-            scanner.current++;
-            if (c[1] == '<' && c[2] == '=')
+            if (*scanner.current == '=')
+            {
                 scanner.current++;
-        }
-        type = OPERATOR;
-        break;
-    case '>':
-        if (c[1] == '>' || c[1] == '=')
-        {
+                return T_NEQ;
+            }
+            return T_NOT;
+        case '+':
             scanner.current++;
-            if (c[1] == '>' && c[2] == '=')
+            if (*scanner.current == '+')
+            { 
                 scanner.current++;
-        }
-        type = OPERATOR;
-        break;
-    case '.':
-        type = OPERATOR;
-        break;
+                return T_INC;
+            }
+            if (*scanner.current == '=')
+            { 
+                scanner.current++;
+                return T_ASSIGN_PLUS;
+            }
+            return T_PLUS;
+        case '-':
+            scanner.current++;
+            if (*scanner.current == '-')
+            {
+                scanner.current++;
+                return T_DEC;
+            }
+            if (*scanner.current == '=')
+            { 
+                scanner.current++;
+                return T_ASSIGN_MINUS;
+            }
+            if (*scanner.current == '>')
+            {
+                scanner.current++;
+                return T_ARROW;
+            }
+            return T_MINUS;
+        case '*':
+            scanner.current++;
+            if (*scanner.current == '=')
+            {
+                scanner.current++;
+                return T_ASSIGN_STAR;
+            }
+            return T_STAR;
+        case '/':
+            scanner.current++;
+            if (*scanner.current == '=')
+            {
+                scanner.current++;
+                return T_ASSIGN_SLASH;
+            }
+            return T_SLASH;
+        case '%':
+            scanner.current++;
+            if (*scanner.current == '=')
+            {
+                scanner.current++;
+                return T_ASSIGN_PERCENT;
+            }
+            return T_PERCENT;
+        case '&':
+            scanner.current++;
+            if (*scanner.current == '&')
+            {
+                scanner.current++;
+                return T_AND;
+            }
+            if (*scanner.current == '=')
+            {
+                scanner.current++;
+                return T_ASSIGN_AND;
+            }
+            return T_AMPERSAND;
+        case '|':
+            scanner.current++;
+            if (*scanner.current == '|')
+            {
+                scanner.current++;
+                return T_OR;
+            }
+            if (*scanner.current == '=')
+            {
+                scanner.current++;
+                return T_ASSIGN_OR;
+            }
+            return T_PIPE;
+        case '^':
+            scanner.current++;
+            if (*scanner.current == '=')
+            {
+                scanner.current++;
+                return T_ASSIGN_XOR;
+            }
+            return T_CARET;
+        case '<':
+            scanner.current++;
+            if (*scanner.current == '<')
+            {
+                scanner.current++;
+                if (*scanner.current == '=')
+                {
+                    scanner.current++;
+                    return T_ASSIGN_LSHIFT;
+                }
+                return T_LSHIFT;
+            }
+            if (*scanner.current == '=')
+            {
+                scanner.current++;
+                return T_LE;
+            }
+            return T_LT;
+        case '>':
+            scanner.current++;
+            if (*scanner.current == '>')
+            {
+                scanner.current++;
+                if (*scanner.current == '=')
+                {
+                    scanner.current++;
+                    return T_ASSIGN_RSHIFT;
+                }
+                return T_RSHIFT;
+            }
+            if (*scanner.current == '=')
+            {
+                scanner.current++;
+                return T_GE;
+            }
+            return T_GT;
     }
-    return type;
+    return -1; // ERROR
 }
 
 // Skipping whitespaces and linebreak
@@ -253,152 +336,142 @@ void skipWhitespaces()
     while (*scanner.current == ' ' ||
            *scanner.current == '\t' ||
            *scanner.current == '\n')
+    {
+        if (*scanner.current == '\n')
+            yylineno++;
         scanner.current++;
+    }
+        
 }
 
-token classifyToken()
+int yylex()
 {
-    skipWhitespaces();
-    scanner.start = scanner.current;
+    while(true)
+    {
+        skipWhitespaces();
+        scanner.start = scanner.current;
 
-    // Skipping macros
-    if (*scanner.current == '#')
-    {
-        // printf("MACRO: ");
-        while (*scanner.current != '\n')
-            scanner.current++;
-        return createToken(NOT_A_TOKEN);
-    }
-
-    // Skipping comments
-    if (*scanner.current == '/' && *(scanner.current + 1) == '/')
-    {
-        // printf("COMMENT: ");
-        while (*scanner.current != '\n')
-            scanner.current++;
-        return createToken(NOT_A_TOKEN);
-    }
-    else if (*scanner.current == '/' && *(scanner.current + 1) == '*')
-    {
-        scanner.current += 2; // jumps the /*
-        while (!(*scanner.current == '*' && *(scanner.current + 1) == '/'))
+        // Skipping macros
+        if (*scanner.current == '#')
         {
-            scanner.current++;
+            while (*scanner.current != '\n' && *scanner.current != '\0')
+                scanner.current++;
+            continue;
         }
-        scanner.current += 2;//jumps the */
-        return createToken(NOT_A_TOKEN);
-    }
 
-    // Detects the EOF
-    if (*scanner.current == '\0')
-    {
-        token t = createToken(END_OF_FILE);
-        return t;
-    }
-
-    char c = *scanner.start; // Stores the first character
-    scanner.current++;
-
-    // LITERALS
-    if (c == '"')
-    {
-        while (*scanner.current != '"')
+        // Skipping comments
+        if (*scanner.current == '/' && *(scanner.current + 1) == '/')
         {
-            scanner.current++;
+            while (*scanner.current != '\n' && *scanner.current != '\0')
+                scanner.current++;
+            continue;
         }
-        scanner.current++; //gets the runaway "
-        return createToken(LITERAL);
-    }
-    if (c == '\'')
-    {
-        while (*scanner.current != '\'')
+        else if (*scanner.current == '/' && *(scanner.current + 1) == '*')
         {
-            scanner.current++;
-        }
-        scanner.current++; //same as string, gets the runaway '
-        return createToken(LITERAL);
-    }
-
-    // CONSTANTS
-    if (isdigit(c))
-    {
-        int e_consumed = 0, dot_consumed = 0;
-        while (isdigit(*scanner.current) || *scanner.current == '.' || *scanner.current == 'e' || *scanner.current == 'E')
-        {
-            if (*scanner.current == '.')
+            scanner.current += 2; // jumps the /*
+            while (!(*scanner.current == '*' && *(scanner.current + 1) == '/'))
             {
-                dot_consumed++; //Deletion of extra logic helps to make easier to understand
-                //The flag now grows bigger and this lets the scanner to get to the end of the string
-                if(e_consumed != 0) //Checks if is there an 'e' already in the string
-                //If there is, now the flag will get out of bounds in cases like 1e1.2 
-                    dot_consumed++;
-                
+                scanner.current++;
+                if (*scanner.current == '\n')
+                    yylineno++;
+                if (*scanner.current == '\0')
+                    return YYEOF;
             }
+            scanner.current += 2;//jumps the */
+            continue;
+        }
 
-            if (*scanner.current == 'e' || *scanner.current == 'E')
+        // Detects the EOF
+        if (*scanner.current == '\0')
+            return YYEOF;
+
+        char c = *scanner.start; // Stores the first character
+        scanner.current++;
+
+        // LITERALS
+        if (c == '"')
+        {
+            while (*scanner.current != '"' && *scanner.current != '\0')
             {
-                e_consumed++; //Same as the dot case
-                //Since the expression can have an explicit positive or negative, it will be jumped anyways
-                if (*(scanner.current + 1) == '+' || *(scanner.current + 1) == '-')
-                {
-                    scanner.current++;
-                }
+                if (*scanner.current == '\n') // Multiline strings
+                    yylineno++;
+                scanner.current++;
             }
-            scanner.current++;
+            scanner.current++; //gets the runaway "
+            saveYYVal();
+            return T_CADENA;
         }
-        if (e_consumed > 1 || dot_consumed > 1) //Minimization of logic here
-            return createToken(NOT_A_TOKEN);
-        return createToken(CONSTANT);
-    }
-
-    // KEYWORDS and IDENTIFIERS
-    if (isalpha(c) || c == '_')
-    { // If matches with the initial char of a keyword or identifier
-        while (isalnum(*scanner.current) || *scanner.current == '_')
-        { // Traverse the lexeme
-            scanner.current++;
-        }
-        TokenType type = lookupKeyword(scanner.start, scanner.current);
-        return createToken(type);
-    }
-
-    // PUNCTUATORS and OPERATORS
-    if (!isalnum(c))
-    {
-        TokenType type = lookupPunctuator(scanner.start);
-        return createToken(type);
-    }
-
-    // Unclassified lexeme
-    return createToken(NOT_A_TOKEN);
-}
-
-// Check every token in the file
-void lexer(char *source)
-{
-    initScanner(source);
-
-    int token_counter = 0;
-    // While the current character is not the EOF
-    while (*scanner.current != '\0')
-    {
-        token t = classifyToken();
-
-        // If the EOF is reached
-        if (t.type == END_OF_FILE) //This is never reached,
+        if (c == '\'')
         {
-            free(t.lexeme); // Free the last lexeme
-            break;
-        }
-        else if (t.type != NOT_A_TOKEN)
-        {
-            token_counter++;
-            printf("%s('%s')\n", getTokenTypeString(t.type), t.lexeme);
+            while (*scanner.current != '\'' && *scanner.current != '\0')
+                scanner.current++;
+            scanner.current++; //same as string, gets the runaway '
+            saveYYVal();
+            return T_CARACTER;
         }
 
-        free(t.lexeme); // Free each lexeme
+        // CONSTANTS
+        if (isdigit(c))
+        {
+            int e_consumed = 0, dot_consumed = 0;
+            while (isdigit(*scanner.current) || *scanner.current == '.' || *scanner.current == 'e' || *scanner.current == 'E')
+            {
+                 if (*scanner.current == '.') dot_consumed++;
+                 if (*scanner.current == 'e' || *scanner.current == 'E')
+                 {
+                     e_consumed++;
+                     if (*(scanner.current + 1) == '+' || *(scanner.current + 1) == '-')
+                     {
+                         scanner.current++;
+                     }
+                 }
+                 scanner.current++;
+            }
+            
+            int len = (int)(scanner.current - scanner.start);
+            char *lexeme = (char *)malloc(len + 1);
+            strncpy(lexeme, scanner.start, len);
+            lexeme[len] = '\0';
+
+            if (dot_consumed > 0 || e_consumed > 0)
+            {
+                yylval.floatVal = atof(lexeme);
+                free(lexeme);
+                return T_NUMERO;
+            }
+            else
+            {
+                yylval.intVal = atoi(lexeme);
+                free(lexeme);
+                return T_ENTERO;
+            }
+        }
+
+        // KEYWORDS and IDENTIFIERS
+        if (isalpha(c) || c == '_')
+        { // If matches with the initial char of a keyword or identifier
+            while (isalnum(*scanner.current) || *scanner.current == '_')
+            { // Traverse the lexeme
+                scanner.current++;
+            }
+            int type = lookupKeyword(scanner.start, scanner.current);
+            if (type == T_ID)
+                saveYYVal();
+            return type;
+        }
+
+        // PUNCTUATORS and OPERATORS
+        if (!isalnum(c))
+        {
+            int type = lookupPunctuator(scanner.start);
+            return type;
+        }
+
+        // Unclassified lexeme
+        printf("(LEXICAL ERROR): in line %d: no recognized '%c'", yylineno, *scanner.start);
+        scanner.current++; // Move to the next character
+        continue;
     }
-    printf("\nTOTAL: %i\n", token_counter);
 }
 
 // Read an entire file and return the content as a string
@@ -417,38 +490,10 @@ char *readFile(const char *source_file_path)
     rewind(f);
 
     // Allocate the memory for the file content
-    char *buffer = (char *)malloc(fileSize);
+    char *buffer = (char *)malloc(fileSize+1);
+    fread(buffer, sizeof(char), fileSize, f);
+    buffer[fileSize] = '\0';
 
     fclose(f);
     return buffer;
-}
-
-/*
-    Arguments: <source_file_path> | <-s source_str>
-    Examples of execution:
-    ./lexer path/to/program.c
-    ./lexer -s 'printf("Hello World!");'
-*/
-int main(int argc, char *argv[])
-{
-    if (argc < 2)
-    {
-        printf("ERROR: Please specify a file or a string to analize.");
-        return 1;
-    }
-
-    if (argc == 2)
-    { // A source file path is received
-        char *HLL_code = readFile(argv[1]);
-        lexer(HLL_code);
-    }
-    else if (argc == 3 && strcmp(argv[1], "-s") == 0)
-    { // A string is received
-        int len = strlen(argv[2]);
-        char *HLL_code = (char *)malloc(len * sizeof(char));
-        strcpy(HLL_code, argv[2]);
-        lexer(HLL_code);
-    }
-
-    return 0;
 }
