@@ -417,7 +417,11 @@ int yylex()
             int e_consumed = 0, dot_consumed = 0;
             while (isdigit(*scanner.current) || *scanner.current == '.' || *scanner.current == 'e' || *scanner.current == 'E')
             {
-                 if (*scanner.current == '.') dot_consumed++;
+                 if (*scanner.current == '.')
+                 {
+                        dot_consumed++;
+                        if(e_consumed > 0) dot_consumed++; 
+                 } 
                  if (*scanner.current == 'e' || *scanner.current == 'E')
                  {
                      e_consumed++;
@@ -434,7 +438,13 @@ int yylex()
             strncpy(lexeme, scanner.start, len);
             lexeme[len] = '\0';
 
-            if (dot_consumed > 0 || e_consumed > 0)
+            if (dot_consumed == 0 && e_consumed == 0)
+            {
+                yylval.intVal = atoi(lexeme);
+                free(lexeme);
+                return T_ENTERO;
+            }
+            else if(dot_consumed <=1 && e_consumed <=1)
             {
                 yylval.floatVal = atof(lexeme);
                 free(lexeme);
@@ -442,9 +452,9 @@ int yylex()
             }
             else
             {
-                yylval.intVal = atoi(lexeme);
+                printf("(LEXICAL ERROR): in line %d: malformed number '%s'\n", yylineno, lexeme);
                 free(lexeme);
-                return T_ENTERO;
+                return YYEOF;
             }
         }
 
