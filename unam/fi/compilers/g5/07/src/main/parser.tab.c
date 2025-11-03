@@ -73,19 +73,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Prototipo del lexer (tu lexer.c) */
+//En esta parte se introduce nuestro analizador lexico
 extern int yylex();
 
-/* Prototipo de la función de error (definida al final) */
+//Esta es la funcion de error por si el paser falla
 void yyerror(const char *s);
 
-/* * Variable global para el Nro de línea. 
- * ¡Asegúrate de definirla ('int yylineno = 1;') 
+/* * Variable global para el Nro de línea.
+ * ¡Asegúrate de definirla ('int yylineno = 1;')
  * y actualizarla en tu lexer.c!
  */
-extern int yylineno; 
+//Variable global para indicar el numero de linea
+extern int yylineno;
 
-#line 89 "src/main/parser.tab.c"
+#line 90 "src/main/parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -617,18 +618,18 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   148,   148,   150,   154,   155,   160,   168,   169,   170,
-     171,   172,   173,   174,   175,   176,   177,   178,   179,   180,
-     181,   182,   186,   187,   191,   192,   196,   197,   202,   205,
-     207,   211,   212,   216,   220,   222,   226,   227,   228,   229,
-     230,   231,   232,   233,   234,   235,   236,   237,   238,   239,
-     240,   243,   245,   254,   255,   259,   263,   267,   271,   277,
-     278,   279,   280,   281,   282,   283,   284,   285,   286,   287,
-     290,   293,   294,   295,   296,   297,   298,   299,   300,   301,
-     302,   303,   304,   305,   308,   309,   310,   311,   312,   315,
-     316,   317,   318,   319,   320,   321,   322,   323,   324,   325,
-     326,   329,   330,   331,   332,   335,   336,   337,   338,   339,
-     340,   343,   345,   349,   350
+       0,   175,   175,   177,   181,   182,   187,   195,   196,   197,
+     198,   199,   200,   201,   202,   203,   204,   205,   206,   207,
+     208,   209,   213,   214,   218,   219,   223,   224,   229,   232,
+     234,   238,   239,   243,   247,   249,   253,   254,   255,   256,
+     257,   258,   259,   260,   261,   262,   263,   264,   265,   266,
+     267,   270,   272,   281,   282,   286,   290,   294,   298,   304,
+     305,   306,   307,   308,   309,   310,   311,   312,   313,   314,
+     317,   320,   321,   322,   323,   324,   325,   326,   327,   328,
+     329,   330,   331,   332,   335,   336,   337,   338,   339,   342,
+     343,   344,   345,   346,   347,   348,   349,   350,   351,   352,
+     353,   356,   357,   358,   359,   362,   363,   364,   365,   366,
+     367,   370,   372,   376,   377
 };
 #endif
 
@@ -1535,7 +1536,7 @@ yyreduce:
   switch (yyn)
     {
 
-#line 1539 "src/main/parser.tab.c"
+#line 1540 "src/main/parser.tab.c"
 
       default: break;
     }
@@ -1728,7 +1729,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 353 "src/main/parser.y"
+#line 380 "src/main/parser.y"
 
 /* ==================================================================
  * SECCIÓN 3: CÓDIGO C ADICIONAL
