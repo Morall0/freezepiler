@@ -35,9 +35,9 @@ int main(int argc, char *argv[])
     int result = yyparse();
 
     if (result == 0)
-        printf("Success\n");
+        printf("Parsing Success!\n");
     else
-        printf("Fail\n");
+        printf("Parsing Error\n");
 
     free(HLL_code);
     return result;

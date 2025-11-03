@@ -386,11 +386,11 @@ int yylex()
             return YYEOF;
 
         char c = *scanner.start; // Stores the first character
-        scanner.current++;
 
         // LITERALS
         if (c == '"')
         {
+            scanner.current++;
             while (*scanner.current != '"' && *scanner.current != '\0')
             {
                 if (*scanner.current == '\n') // Multiline strings
@@ -403,6 +403,7 @@ int yylex()
         }
         if (c == '\'')
         {
+            scanner.current++;
             while (*scanner.current != '\'' && *scanner.current != '\0')
                 scanner.current++;
             scanner.current++; //same as string, gets the runaway '

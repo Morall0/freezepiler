@@ -86,19 +86,19 @@ extern int yylineno;
 
 //OPERATORS
 //operadores de asignacion
-// =  &   +=    &     -=      &    *=    &    /=
+// =  &   +=    &      -=       &    *=    &    /=
 %token T_ASSIGN T_ASSIGN_PLUS T_ASSIGN_MINUS T_ASSIGN_STAR T_ASSIGN_SLASH
 
 // %=    &    <<=   &   >>=
 %token T_ASSIGN_PERCENT T_ASSIGN_LSHIFT T_ASSIGN_RSHIFT
 
-//  &=   &   |=     &    ^=
+//  &=   &   |=      &    ^=
 %token T_ASSIGN_AND T_ASSIGN_OR T_ASSIGN_XOR
 
-//   +    -    *     /     %
+//    +    -    * /       %
 %token T_PLUS T_MINUS T_STAR T_SLASH T_PERCENT
 %token T_INC T_DEC /* ++ -- */
-//   ==   &   !=    &   <    &   <=    &   >    &   >=
+//    ==   &   !=    &   <    &   <=    &   >    &   >=
 %token T_EQ T_NEQ T_LT T_LE T_GT T_GE
 %token T_AND T_OR  /* && || */
 %token T_AMPERSAND /* & */
@@ -107,6 +107,13 @@ extern int yylineno;
 %token T_NOT       /* ! */
 %token T_TILDE     /* ~ */
 %token T_LSHIFT T_RSHIFT /* << >> */
+
+/* * ------------------------------------------------------------------
+ * MEJORES MENSAJES DE ERROR
+ * ------------------------------------------------------------------
+ */
+/* Esta directiva hace que %s en yyerror() sea más detallado */
+%define parse.error verbose
 
 /* * ------------------------------------------------------------------
  * PRECEDENCIA Y ASOCIATIVIDAD
@@ -131,7 +138,7 @@ extern int yylineno;
 %left T_OR
 %left T_AND
 
-//Despues va   | ,  ^   ,   &   
+//Despues va    | ,  ^   ,    &   
 %left T_PIPE
 %left T_CARET
 %left T_AMPERSAND
@@ -148,7 +155,7 @@ extern int yylineno;
 //Despues va +    -
 %left T_PLUS T_MINUS
 
-//Despues va    *    /    %    
+//Despues va    * /    %   
 %left T_STAR T_SLASH T_PERCENT
 
 //Despues va  ++    --    !      ~    negacion numerica ( -x  )   sizeof
@@ -161,7 +168,7 @@ extern int yylineno;
 %nonassoc T_IFX
 %nonassoc T_ELSE
 
-//Despues sigue    [    ]    (    )     .    ->
+//Despues sigue     [    ]    (    )      .    ->
 %left T_LBRACKET T_RBRACKET T_LPAREN T_RPAREN T_DOT T_ARROW
 
 //Y el que tiene mayor precedencia es el simbolo inicial
@@ -225,14 +232,20 @@ var:
   ;
 
 /* --- Funciones --- */
+/*
+ * ¡REGLA CORREGIDA!
+ * Se eliminó 'parametros_opt' y se manejan los 3 casos aquí
+ * para evitar la ambigüedad con T_VOID.
+ */
 funcion:
-    tipo_specifier T_ID T_LPAREN parametros_opt T_RPAREN T_LBRACE bloque T_RBRACE
+    tipo_specifier T_ID T_LPAREN T_RPAREN T_LBRACE bloque T_RBRACE                 /* Caso 1: int main() */
+  | tipo_specifier T_ID T_LPAREN T_VOID T_RPAREN T_LBRACE bloque T_RBRACE         /* Caso 2: int main(void) */
+  | tipo_specifier T_ID T_LPAREN parametros T_RPAREN T_LBRACE bloque T_RBRACE     /* Caso 3: int main(int a) */
   ;
 
-parametros_opt:
-    /* vacío */
-  | parametros
-  ;
+/*
+ * 'parametros_opt' fue eliminada.
+ */
 
 parametros:
     parametro
@@ -347,8 +360,8 @@ expr:
   | expr T_DEC
   | T_NOT expr
   | T_TILDE expr
-  | T_AMPERSAND expr /* Dirección de (ej. &x) */
-  | T_STAR expr      /* Desreferencia (ej. *p) */
+  | T_AMPERSAND expr %prec T_UMINUS /* CORREGIDO: Añadida precedencia unaria */
+  | T_STAR expr      %prec T_UMINUS /* CORREGIDO: Añadida precedencia unaria */
   | T_SIZEOF expr
   | T_SIZEOF T_LPAREN tipo_specifier T_RPAREN
 
@@ -389,8 +402,3 @@ lista_args:
 void yyerror(const char *s) {
     fprintf(stderr, "Syntax error in line %d: %s\n", yylineno, s);
 }
-
-/*
- * NO HAY 'main()' AQUÍ.
- * Tu 'main()' está en lexer.c y debe llamar a yyparse().
- */
