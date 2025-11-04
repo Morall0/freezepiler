@@ -1,9 +1,9 @@
 /* ==================================================================
- * ARCHIVO: parser.y (Versión Final Completa)
+ * FILE: parser.y (Modular Version)
  * ================================================================== */
 
 /* * ------------------------------------------------------------------
- * SECCIÓN 1: DECLARACIONES DE C Y BISON
+ * SECTION 1: C AND BISON DECLARATIONS
  * ------------------------------------------------------------------
  */
 %{
@@ -11,55 +11,49 @@
 #include <stdlib.h>
 #include <string.h>
 
-//En esta parte se introduce nuestro analizador lexico
+/* Include the AST interface */
+#include "ast.h" 
+
+/* Lexer function prototype */
 extern int yylex();
 
-//Esta es la funcion de error por si el paser falla
+/* Error function prototype */
 void yyerror(const char *s);
 
-/* * Variable global para el Nro de línea.
- * ¡Asegúrate de definirla ('int yylineno = 1;')
- * y actualizarla en tu lexer.c!
- */
-//Variable global para indicar el numero de linea
+/* Global line number variable from lexer */
 extern int yylineno;
 %}
 
 /* * ------------------------------------------------------------------
- * SINDICATO Y TOKENS
+ * UNION AND TOKENS
  * ------------------------------------------------------------------
  */
 
-/* Define los tipos de datos que pueden tener los símbolos */
-
-//En esta parte se define el tipo de dato que se utiliza en los
-//elementos de la pila de Bison
+/* Defines the semantic values that symbols can have */
 %union {
   int intVal;
   float floatVal;
   char* strVal;
+  struct ast_node *node; /* Non-terminals will return an AST node pointer */
 }
 
-//KEYWORDS
-//Definimos los diferentes tokens que se puede obtener del lexer que pertenecen a
-//los keywords
+// KEYWORDS
 
-//Palabras clave para los tipos de datos
-%token T_INT T_FLOAT T_CHAR T_VOID T_DOUBLE T_LONG T_SHORT T_SIGNED T_UNSIGNED
+// Type keywords
+%token <intVal> T_INT T_FLOAT T_CHAR T_VOID T_DOUBLE T_LONG T_SHORT T_SIGNED T_UNSIGNED
+%token <intVal> T_CONST T_VOLATILE T_TYPEDEF
+
 %token T_STRUCT T_UNION T_ENUM
-%token T_CONST T_VOLATILE
-%token T_TYPEDEF
 
-//Palabras clave para las estructuras de control
+// Selection and looping structures
 %token T_IF T_ELSE T_WHILE T_FOR T_DO T_SWITCH T_CASE T_DEFAULT
 %token T_BREAK T_CONTINUE T_RETURN T_GOTO
 
-//Otras palabras clave
+// More keywords
 %token T_AUTO T_REGISTER T_STATIC T_EXTERN
 %token T_SIZEOF
 
 //IDENTIFIERS
-// La parte entre <> antes del nombre del token es el tipo de dato definido antes en union
 %token <strVal> T_ID
 
 //CONSTANTS
@@ -85,7 +79,6 @@ extern int yylineno;
 %token T_QUESTION T_COLON
 
 //OPERATORS
-//operadores de asignacion
 // =  &   +=    &      -=       &    *=    &    /=
 %token T_ASSIGN T_ASSIGN_PLUS T_ASSIGN_MINUS T_ASSIGN_STAR T_ASSIGN_SLASH
 
@@ -109,296 +102,386 @@ extern int yylineno;
 %token T_LSHIFT T_RSHIFT /* << >> */
 
 /* * ------------------------------------------------------------------
- * MEJORES MENSAJES DE ERROR
+ * NON-TERMINAL TYPES
  * ------------------------------------------------------------------
  */
-/* Esta directiva hace que %s en yyerror() sea más detallado */
+/* Specify that all non-terminals return a <node> pointer */
+%type <node> programa declaracion_externa declaracion tipo_specifier
+%type <node> lista_init_var init_var var funcion parametros parametro
+%type <node> bloque sentencia expr_opcional if_sent while_sent
+%type <node> do_while_sent for_sent switch_sent expr lista_args_opt lista_args
+
+
+/* * ------------------------------------------------------------------
+ * ERROR REPORTING
+ * ------------------------------------------------------------------
+ */
+/* Enable detailed error messages (replaces %error-verbose) */
 %define parse.error verbose
 
 /* * ------------------------------------------------------------------
- * PRECEDENCIA Y ASOCIATIVIDAD
+ * PRECEDENCE AND ASSOCIATIVITY
  * ------------------------------------------------------------------
- * De MENOR precedencia (arriba) a MAYOR (abajo).
+ * (Lowest precedence at top, highest at bottom)
  */
 
-// La sentencia %left indica que la asociatividad es de izquierda a derecha
-//La sentencia %right indica que la asociatividad es de derecha a izquierda
- 
-// La coma es la de menor precedencia
 %left T_COMMA
-//Despues van las asignaciones
 %right T_ASSIGN T_ASSIGN_PLUS T_ASSIGN_MINUS T_ASSIGN_STAR T_ASSIGN_SLASH
 %right T_ASSIGN_PERCENT T_ASSIGN_LSHIFT T_ASSIGN_RSHIFT
 %right T_ASSIGN_AND T_ASSIGN_OR T_ASSIGN_XOR
 
-//Despues van ?  &  :
 %right T_QUESTION T_COLON
 
-//Despues van las sentencias logicas || ,  &&
 %left T_OR
 %left T_AND
 
-//Despues va    | ,  ^   ,    &   
 %left T_PIPE
 %left T_CARET
 %left T_AMPERSAND
 
-//Despues va ==   !=
 %left T_EQ T_NEQ
 
-//Despes va   <   <=   >   >=
 %left T_LT T_LE T_GT T_GE
 
-//Despues va    <<   >>
 %left T_LSHIFT T_RSHIFT
 
-//Despues va +    -
 %left T_PLUS T_MINUS
 
-//Despues va    * /    %   
 %left T_STAR T_SLASH T_PERCENT
 
-//Despues va  ++    --    !      ~    negacion numerica ( -x  )   sizeof
 %right T_INC T_DEC T_NOT T_TILDE T_UMINUS T_SIZEOF
 
-//Precedencia para solucionar un dangling else
-//nonassoc significa que un token no puede asociarse con otros del mismo tipo
-//Al poner esta precedenia donde el else es mayor que el if el else siempre se asociara
-//con el if mas cercano
 %nonassoc T_IFX
 %nonassoc T_ELSE
 
-//Despues sigue     [    ]    (    )      .    ->
 %left T_LBRACKET T_RBRACKET T_LPAREN T_RPAREN T_DOT T_ARROW
 
-//Y el que tiene mayor precedencia es el simbolo inicial
 %start programa
 
 %%
 /* ==================================================================
- * SECCIÓN 2: REGLAS DE LA GRAMÁTICA (BNF)
+ * SECTION 2: GRAMMAR RULES (WITH SEMANTIC ACTIONS)
  * ================================================================== */
 
 programa:
-    /* programa vacío */
+    /* empty program */
+    { $$ = NULL; }
   | programa declaracion_externa
+    { $$ = ast_append_sibling($1, $2); ast_root = $$; }
   ;
 
 declaracion_externa:
     declaracion
+    { $$ = $1; }
   | funcion
+    { $$ = $1; }
   ;
 
-/* --- Declaraciones --- */
+/* --- Declarations --- */
 declaracion:
     tipo_specifier lista_init_var T_SEMICOLON
+    { $$ = make_node(NT_DECLARACION, $1); $$->child->sibling = $2; }
   ;
 
-/* * SOLUCIÓN: Regla de tipo SIMPLIFICADA.
- * NO es recursiva, por lo tanto NO es ambigua.
- * No permite 'unsigned long', solo 'unsigned' o 'long'.
- */
 tipo_specifier:
     T_VOID
+    { $$ = make_leaf_int(NT_TIPO, T_VOID); }
   | T_CHAR
+    { $$ = make_leaf_int(NT_TIPO, T_CHAR); }
   | T_SHORT
+    { $$ = make_leaf_int(NT_TIPO, T_SHORT); }
   | T_INT
+    { $$ = make_leaf_int(NT_TIPO, T_INT); }
   | T_LONG
+    { $$ = make_leaf_int(NT_TIPO, T_LONG); }
   | T_FLOAT
+    { $$ = make_leaf_int(NT_TIPO, T_FLOAT); }
   | T_DOUBLE
+    { $$ = make_leaf_int(NT_TIPO, T_DOUBLE); }
   | T_SIGNED
+    { $$ = make_leaf_int(NT_TIPO, T_SIGNED); }
   | T_UNSIGNED
+    { $$ = make_leaf_int(NT_TIPO, T_UNSIGNED); }
   | T_CONST
+    { $$ = make_leaf_int(NT_TIPO, T_CONST); }
   | T_VOLATILE
+    { $$ = make_leaf_int(NT_TIPO, T_VOLATILE); }
   | T_STRUCT T_ID
+    { $$ = make_leaf_str(NT_TIPO, $2); $$->value.op = T_STRUCT; }
   | T_UNION T_ID
+    { $$ = make_leaf_str(NT_TIPO, $2); $$->value.op = T_UNION; }
   | T_ENUM T_ID
+    { $$ = make_leaf_str(NT_TIPO, $2); $$->value.op = T_ENUM; }
   | T_TYPEDEF
+    { $$ = make_leaf_int(NT_TIPO, T_TYPEDEF); }
   ;
 
 lista_init_var:
     init_var
+    { $$ = $1; }
   | lista_init_var T_COMMA init_var
+    { $$ = ast_append_sibling($1, $3); }
   ;
 
 init_var:
     var
-  | var T_ASSIGN expr /* Inicialización, ej: int x = 5; */
+    { $$ = $1; }
+  | var T_ASSIGN expr 
+    { $$ = make_op_node(T_ASSIGN, $1, $3); }
   ;
 
 var:
     T_ID
+    { $$ = make_leaf_str(NT_VAR, $1); }
   | T_ID T_LBRACKET expr_opcional T_RBRACKET
+    { $$ = make_node(NT_ARRAY_DECL, make_leaf_str(NT_VAR, $1)); $$->child->sibling = $3; }
   ;
 
-/* --- Funciones --- */
-/*
- * ¡REGLA CORREGIDA!
- * Se eliminó 'parametros_opt' y se manejan los 3 casos aquí
- * para evitar la ambigüedad con T_VOID.
- */
+/* --- Functions --- */
+/* Handle all 3 parameter cases explicitly to avoid ambiguity */
 funcion:
-    tipo_specifier T_ID T_LPAREN T_RPAREN T_LBRACE bloque T_RBRACE                 /* Caso 1: int main() */
-  | tipo_specifier T_ID T_LPAREN T_VOID T_RPAREN T_LBRACE bloque T_RBRACE         /* Caso 2: int main(void) */
-  | tipo_specifier T_ID T_LPAREN parametros T_RPAREN T_LBRACE bloque T_RBRACE     /* Caso 3: int main(int a) */
+    tipo_specifier T_ID T_LPAREN T_RPAREN T_LBRACE bloque T_RBRACE
+    { $$ = make_node(NT_FUNCION, $1); $$->child->sibling = make_leaf_str(NT_ID, $2); $$->child->sibling->sibling = $6; }
+  | tipo_specifier T_ID T_LPAREN T_VOID T_RPAREN T_LBRACE bloque T_RBRACE
+    { $$ = make_node(NT_FUNCION, $1); $$->child->sibling = make_leaf_str(NT_ID, $2); $$->child->sibling->sibling = make_leaf_int(NT_TIPO, T_VOID); $$->child->sibling->sibling->sibling = $7; }
+  | tipo_specifier T_ID T_LPAREN parametros T_RPAREN T_LBRACE bloque T_RBRACE
+    { $$ = make_node(NT_FUNCION, $1); $$->child->sibling = make_leaf_str(NT_ID, $2); $$->child->sibling->sibling = $4; $$->child->sibling->sibling->sibling = $7; }
   ;
-
-/*
- * 'parametros_opt' fue eliminada.
- */
 
 parametros:
     parametro
+    { $$ = $1; }
   | parametros T_COMMA parametro
+    { $$ = ast_append_sibling($1, $3); }
   ;
 
 parametro:
     tipo_specifier T_ID
+    { $$ = make_node(NT_PARAMETRO, $1); $$->child->sibling = make_leaf_str(NT_ID, $2); }
   ;
 
-/* --- Bloques y Sentencias --- */
+/* --- Blocks and Statements --- */
 bloque:
-    /* bloque vacío */
+    /* empty */
+    { $$ = NULL; }
   | bloque sentencia
+    { $$ = ast_append_sibling($1, $2); }
   ;
 
 sentencia:
     declaracion
+    { $$ = $1; }
   | if_sent
+    { $$ = $1; }
   | while_sent
+    { $$ = $1; }
   | do_while_sent
+    { $$ = $1; }
   | for_sent
+    { $$ = $1; }
   | switch_sent
+    { $$ = $1; }
   | T_BREAK T_SEMICOLON
+    { $$ = make_node(NT_BREAK, NULL); }
   | T_CONTINUE T_SEMICOLON
+    { $$ = make_node(NT_CONTINUE, NULL); }
   | T_RETURN expr_opcional T_SEMICOLON
+    { $$ = make_node(NT_RETURN, $2); }
   | T_GOTO T_ID T_SEMICOLON
+    { $$ = make_node(NT_GOTO, make_leaf_str(NT_ID, $2)); }
   | T_LBRACE bloque T_RBRACE
-  | T_ID T_COLON sentencia /* Etiqueta para GOTO o CASE */
+    { $$ = make_node(NT_BLOQUE, $2); }
+  | T_ID T_COLON sentencia
+    { $$ = make_node(NT_ETIQUETA, make_leaf_str(NT_ID, $1)); $$->child->sibling = $3; }
   | T_CASE expr T_COLON sentencia
+    { $$ = make_node(NT_CASE, $2); $$->child->sibling = $4; }
   | T_DEFAULT T_COLON sentencia
+    { $$ = make_node(NT_DEFAULT, $3); }
   | expr_opcional T_SEMICOLON
+    { $$ = make_node(NT_EXPR_SENTENCIA, $1); }
   ;
 
 expr_opcional:
-    /* vacío */
+    /* empty */
+    { $$ = NULL; }
   | expr
+    { $$ = $1; }
   ;
 
-/* --- Sentencias de Control --- */
+/* --- Control Flow Statements --- */
 
-/* * SOLUCIÓN: Regla 'if' con %prec T_IFX
- * para resolver la ambigüedad del 'dangling else'.
- */
 if_sent:
     T_IF T_LPAREN expr T_RPAREN sentencia %prec T_IFX
+    { $$ = make_node(NT_IF, $3); $$->child->sibling = $5; }
   | T_IF T_LPAREN expr T_RPAREN sentencia T_ELSE sentencia
+    { $$ = make_node(NT_IF, $3); $$->child->sibling = $5; $$->child->sibling->sibling = $7; }
   ;
 
 while_sent:
     T_WHILE T_LPAREN expr T_RPAREN sentencia
+    { $$ = make_node(NT_WHILE, $3); $$->child->sibling = $5; }
   ;
 
 do_while_sent:
     T_DO sentencia T_WHILE T_LPAREN expr T_RPAREN T_SEMICOLON
+    { $$ = make_node(NT_DO_WHILE, $5); $$->child->sibling = $2; }
   ;
 
 for_sent:
     T_FOR T_LPAREN expr_opcional T_SEMICOLON expr_opcional T_SEMICOLON expr_opcional T_RPAREN sentencia
+    { $$ = make_node(NT_FOR, $3); $$->child->sibling = $5; $$->child->sibling->sibling = $7; $$->child->sibling->sibling->sibling = $9; }
   ;
 
 switch_sent:
     T_SWITCH T_LPAREN expr T_RPAREN sentencia
+    { $$ = make_node(NT_SWITCH, $3); $$->child->sibling = $5; }
   ;
 
-/* --- Expresiones (Completas) --- */
+/* --- Expressions --- */
 expr:
-    /* Asignación */
+    /* Assignment */
     T_ID T_ASSIGN expr
+    { $$ = make_op_node(T_ASSIGN, make_leaf_str(NT_ID, $1), $3); }
   | expr T_ASSIGN_PLUS expr
+    { $$ = make_op_node(T_ASSIGN_PLUS, $1, $3); }
   | expr T_ASSIGN_MINUS expr
+    { $$ = make_op_node(T_ASSIGN_MINUS, $1, $3); }
   | expr T_ASSIGN_STAR expr
+    { $$ = make_op_node(T_ASSIGN_STAR, $1, $3); }
   | expr T_ASSIGN_SLASH expr
+    { $$ = make_op_node(T_ASSIGN_SLASH, $1, $3); }
   | expr T_ASSIGN_PERCENT expr
+    { $$ = make_op_node(T_ASSIGN_PERCENT, $1, $3); }
   | expr T_ASSIGN_LSHIFT expr
+    { $$ = make_op_node(T_ASSIGN_LSHIFT, $1, $3); }
   | expr T_ASSIGN_RSHIFT expr
+    { $$ = make_op_node(T_ASSIGN_RSHIFT, $1, $3); }
   | expr T_ASSIGN_AND expr
+    { $$ = make_op_node(T_ASSIGN_AND, $1, $3); }
   | expr T_ASSIGN_OR expr
+    { $$ = make_op_node(T_ASSIGN_OR, $1, $3); }
   | expr T_ASSIGN_XOR expr
+    { $$ = make_op_node(T_ASSIGN_XOR, $1, $3); }
 
-    /* Ternario */
+    /* Ternary */
   | expr T_QUESTION expr T_COLON expr
+    { $$ = make_node(NT_TERNARIO, $1); $$->child->sibling = $3; $$->child->sibling->sibling = $5; }
 
-    /* Lógicos y Bitwise */
+    /* Logical and Bitwise */
   | expr T_OR expr
+    { $$ = make_op_node(T_OR, $1, $3); }
   | expr T_AND expr
+    { $$ = make_op_node(T_AND, $1, $3); }
   | expr T_PIPE expr
+    { $$ = make_op_node(T_PIPE, $1, $3); }
   | expr T_CARET expr
+    { $$ = make_op_node(T_CARET, $1, $3); }
   | expr T_AMPERSAND expr
+    { $$ = make_op_node(T_AMPERSAND, $1, $3); }
   | expr T_EQ expr
+    { $$ = make_op_node(T_EQ, $1, $3); }
   | expr T_NEQ expr
+    { $$ = make_op_node(T_NEQ, $1, $3); }
   | expr T_LT expr
+    { $$ = make_op_node(T_LT, $1, $3); }
   | expr T_LE expr
+    { $$ = make_op_node(T_LE, $1, $3); }
   | expr T_GT expr
+    { $$ = make_op_node(T_GT, $1, $3); }
   | expr T_GE expr
+    { $$ = make_op_node(T_GE, $1, $3); }
   | expr T_LSHIFT expr
+    { $$ = make_op_node(T_LSHIFT, $1, $3); }
   | expr T_RSHIFT expr
+    { $$ = make_op_node(T_RSHIFT, $1, $3); }
 
-    /* Aritméticos */
+    /* Arithmetic */
   | expr T_PLUS expr
+    { $$ = make_op_node(T_PLUS, $1, $3); }
   | expr T_MINUS expr
+    { $$ = make_op_node(T_MINUS, $1, $3); }
   | expr T_STAR expr
+    { $$ = make_op_node(T_STAR, $1, $3); }
   | expr T_SLASH expr
+    { $$ = make_op_node(T_SLASH, $1, $3); }
   | expr T_PERCENT expr
+    { $$ = make_op_node(T_PERCENT, $1, $3); }
 
-    /* Unarios (con %prec T_UMINUS para - y +) */
+    /* Unary */
   | T_MINUS expr %prec T_UMINUS
+    { $$ = make_unary_op_node(T_MINUS, $2); }
   | T_PLUS expr %prec T_UMINUS
+    { $$ = $2; } /* Unary plus is a no-op */
   | T_INC expr
+    { $$ = make_unary_op_node(T_INC, $2); }
   | expr T_INC
+    { $$ = make_unary_op_node(T_INC, $1); } 
   | T_DEC expr
+    { $$ = make_unary_op_node(T_DEC, $2); }
   | expr T_DEC
+    { $$ = make_unary_op_node(T_DEC, $1); }
   | T_NOT expr
+    { $$ = make_unary_op_node(T_NOT, $2); }
   | T_TILDE expr
-  | T_AMPERSAND expr %prec T_UMINUS /* CORREGIDO: Añadida precedencia unaria */
-  | T_STAR expr      %prec T_UMINUS /* CORREGIDO: Añadida precedencia unaria */
+    { $$ = make_unary_op_node(T_TILDE, $2); }
+  | T_AMPERSAND expr %prec T_UMINUS 
+    { $$ = make_unary_op_node(T_AMPERSAND, $2); } /* Address-of */
+  | T_STAR expr %prec T_UMINUS 
+    { $$ = make_unary_op_node(T_STAR, $2); } /* Dereference */
   | T_SIZEOF expr
+    { $$ = make_unary_op_node(T_SIZEOF, $2); }
   | T_SIZEOF T_LPAREN tipo_specifier T_RPAREN
+    { $$ = make_unary_op_node(T_SIZEOF, $3); }
 
-    /* Postfijos / Acceso */
+    /* Postfix / Access */
   | expr T_LBRACKET expr T_RBRACKET
+    { $$ = make_node(NT_ACCESO_ARRAY, $1); $$->child->sibling = $3; }
   | expr T_LPAREN lista_args_opt T_RPAREN
+    { $$ = make_node(NT_LLAMADA_FUNCION, $1); $$->child->sibling = $3; }
   | expr T_DOT T_ID
+    { $$ = make_node(NT_ACCESO_MIEMBRO, $1); $$->child->sibling = make_leaf_str(NT_ID, $3); $$->value.op = T_DOT; }
   | expr T_ARROW T_ID
+    { $$ = make_node(NT_ACCESO_MIEMBRO, $1); $$->child->sibling = make_leaf_str(NT_ID, $3); $$->value.op = T_ARROW; }
 
-    /* Primitivos */
+    /* Primitives */
   | T_LPAREN expr T_RPAREN
+    { $$ = $2; } /* Pass inner node up */
   | T_ID
+    { $$ = make_leaf_str(NT_ID, $1); }
   | T_ENTERO
+    { $$ = make_leaf_int(NT_ENTERO, $1); }
   | T_NUMERO
+    { $$ = make_leaf_float(NT_FLOTANTE, $1); }
   | T_CARACTER
+    { $$ = make_leaf_str(NT_CARACTER, $1); }
   | T_CADENA
+    { $$ = make_leaf_str(NT_CADENA, $1); }
   ;
 
 lista_args_opt:
-    /* vacío */
+    /* empty */
+    { $$ = NULL; }
   | lista_args
+    { $$ = $1; }
   ;
 
 lista_args:
     expr
+    { $$ = $1; }
   | lista_args T_COMMA expr
+    { $$ = ast_append_sibling($1, $3); }
   ;
 
 %%
 /* ==================================================================
- * SECCIÓN 3: CÓDIGO C ADICIONAL
+ * SECTION 3: ADDITIONAL C CODE
  * ================================================================== */
 
 /*
- * Función de error. Bison la llama automáticamente.
- * Usa 'yylineno' (definida en tu lexer.c) para reportar la línea.
+ * All AST helper functions (make_node, print_ast, etc.)
+ * have been moved to 'ast.c'.
  */
+
 void yyerror(const char *s) {
     fprintf(stderr, "Syntax error in line %d: %s\n", yylineno, s);
 }

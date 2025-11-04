@@ -23,6 +23,7 @@ void initScanner(const char *source_code)
     scanner.current = source_code;
 }
 
+// Save the value of a token in the bison yylval variable
 void saveYYVal() {
     int len = (int)(scanner.current - scanner.start); // Calculate the length of the lexeme
     yylval.strVal = (char *)malloc(len + 1);
@@ -147,6 +148,7 @@ int lookupKeyword(const char *start, const char *end)
     return T_ID;
 }
 
+// Return an int corresponding to the punctuator or operator
 int lookupPunctuator(const char *c)
 {
     switch (c[0])
@@ -344,6 +346,9 @@ void skipWhitespaces()
         
 }
 
+// Return the tokens found in source code
+// Named yylex in order to stablish with
+// bison yyparse() function
 int yylex()
 {
     while(true)

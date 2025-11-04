@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lexer.h"
+#include "ast.h"
 #include "parser.tab.h"
 
 /*
@@ -32,13 +33,30 @@ int main(int argc, char *argv[])
 
     initScanner(HLL_code);
 
-    int result = yyparse();
+    int parse_result = yyparse(); // It takes the tokens from lexer (yylex())
 
-    if (result == 0)
+    if (parse_result != 0) 
+    {
+        printf("Parsing error...\n");
+        printf("SDT error...\n");
+    }
+    else 
+    {
         printf("Parsing Success!\n");
-    else
-        printf("Parsing Error\n");
+        int sdt_result = validate_sdt(ast_root);
+
+        if (sdt_result == 1)
+            printf("SDT Verified!\n");
+        else
+            printf("SDT error...\n");
+    }
+
+    /*
+    printf("--- Abstract Syntax Tree (AST) ---\n");
+    print_ast(ast_root, 0);
+    printf("----------------------------------\n");
+    */
 
     free(HLL_code);
-    return result;
+    return parse_result;
 }
