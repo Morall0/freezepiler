@@ -11,3 +11,4 @@ Please follow the link below to view the project's main `README.md`, which inclu
 ## Documentation
 
 - [Lexer Report](unam/fi/compilers/g5/07/doc/Team07-Compilers-Lexer.pdf)
+- [Parser Report](unam/fi/compilers/g5/07/doc/07-Compilers-Parser.pdf)
