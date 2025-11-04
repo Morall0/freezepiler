@@ -21,8 +21,8 @@ After compiling, you can run the executable from the same root directory. The pr
 
 ~~~ bash
 # Example 1: path to a file
-$ ./bin/lexer path/to/program.c
+$ ./bin/main path/to/program.c
 
 # Example 2: string
-$ ./bin/lexer -s 'printf("hello world!");'
+$ ./bin/main -s 'int main(void) {printf("hello world!"); return 0;}'
 ~~~
