@@ -417,8 +417,9 @@ char *readFile(const char *source_file_path)
     rewind(f);
 
     // Allocate the memory for the file content
-    char *buffer = (char *)malloc(fileSize);
-
+    char *buffer = (char *)malloc(fileSize + 1);
+    fread(buffer, sizeof(char), fileSize, f);
+    buffer[fileSize] = '\0'; 
     fclose(f);
     return buffer;
 }
