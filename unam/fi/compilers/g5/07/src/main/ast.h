@@ -1,5 +1,6 @@
 #ifndef AST_H
 #define AST_H
+extern int token_count;
 
 // Abstract Syntax Tree Node Types
 typedef enum {
