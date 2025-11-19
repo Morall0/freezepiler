@@ -6,6 +6,8 @@
 #include "parser.tab.h"
 #include <assert.h>
 
+int token_count = 0;
+
 typedef struct
 {
     const char *start;   // Address of the initial character from the lexeme
@@ -349,8 +351,8 @@ void skipWhitespaces()
 // Return the tokens found in source code
 // Named yylex in order to stablish with
 // bison yyparse() function
-int yylex()
-{
+
+int siguiente_token(){
     while(true)
     {
         skipWhitespaces();
@@ -422,22 +424,22 @@ int yylex()
             int e_consumed = 0, dot_consumed = 0;
             while (isdigit(*scanner.current) || *scanner.current == '.' || *scanner.current == 'e' || *scanner.current == 'E')
             {
-                 if (*scanner.current == '.')
-                 {
-                        dot_consumed++;
-                        if(e_consumed > 0) dot_consumed++; 
-                 } 
-                 if (*scanner.current == 'e' || *scanner.current == 'E')
-                 {
-                     e_consumed++;
-                     if (*(scanner.current + 1) == '+' || *(scanner.current + 1) == '-')
-                     {
-                         scanner.current++;
-                     }
-                 }
-                 scanner.current++;
+                if (*scanner.current == '.')
+                {
+                    dot_consumed++;
+                    if(e_consumed > 0) dot_consumed++;
+                }
+                if (*scanner.current == 'e' || *scanner.current == 'E')
+                {
+                    e_consumed++;
+                    if (*(scanner.current + 1) == '+' || *(scanner.current + 1) == '-')
+                    {
+                        scanner.current++;
+                    }
+                }
+                scanner.current++;
             }
-            
+
             int len = (int)(scanner.current - scanner.start);
             char *lexeme = (char *)malloc(len + 1);
             strncpy(lexeme, scanner.start, len);
@@ -488,6 +490,15 @@ int yylex()
         scanner.current++; // Move to the next character
         continue;
     }
+}
+
+int yylex()
+{
+    int tok = siguiente_token();
+    if (tok != 0){
+        token_count ++;
+    }
+    return tok;
 }
 
 // Read an entire file and return the content as a string
