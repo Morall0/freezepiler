@@ -164,11 +164,30 @@ extern int yylineno;
  * ================================================================== */
 
 programa:
-    /* empty program */
-    { $$ = NULL; }
-  | programa declaracion_externa
-    { $$ = ast_append_sibling($1, $2); ast_root = $$; }
-  ;
+      /* empty */
+      {
+          // Un programa vacío sigue siendo un nodo PROGRAMA sin hijos
+          $$ = make_node(NT_PROGRAMA, NULL);
+          ast_root = $$;
+      }
+
+    | declaracion_externa
+      {
+          // Primer declaración: crear PROGRAMA y ponerla como hijo
+          struct ast_node *prog = make_node(NT_PROGRAMA, $1);
+          ast_root = prog;
+          $$ = prog;
+      }
+
+    | programa declaracion_externa
+      {
+          // Agregar la nueva declaración como hermano del primer hijo
+          ast_append_sibling($1->child, $2);
+          ast_root = $1;
+          $$ = $1;
+      }
+    ;
+
 
 declaracion_externa:
     declaracion
@@ -238,35 +257,86 @@ var:
   ;
 
 /* --- Functions --- */
-/* Handle all 3 parameter cases explicitly to avoid ambiguity */
 funcion:
-    tipo_specifier T_ID T_LPAREN T_RPAREN T_LBRACE bloque T_RBRACE
-    { $$ = make_node(NT_FUNCION, $1); $$->child->sibling = make_leaf_str(NT_ID, $2); $$->child->sibling->sibling = $6; }
-  | tipo_specifier T_ID T_LPAREN T_VOID T_RPAREN T_LBRACE bloque T_RBRACE
-    { $$ = make_node(NT_FUNCION, $1); $$->child->sibling = make_leaf_str(NT_ID, $2); $$->child->sibling->sibling = make_leaf_int(NT_TIPO, T_VOID); $$->child->sibling->sibling->sibling = $7; }
-  | tipo_specifier T_ID T_LPAREN parametros T_RPAREN T_LBRACE bloque T_RBRACE
-    { $$ = make_node(NT_FUNCION, $1); $$->child->sibling = make_leaf_str(NT_ID, $2); $$->child->sibling->sibling = $4; $$->child->sibling->sibling->sibling = $7; }
-  ;
+      tipo_specifier T_ID T_LPAREN T_RPAREN T_LBRACE bloque T_RBRACE
+      {
+          struct ast_node *ret = $1;
+          struct ast_node *id = make_leaf_str(NT_ID, $2);
+          struct ast_node *params = NULL;
+          struct ast_node *body = make_node(NT_BLOQUE, $6);
+
+          ret->sibling = id;
+          id->sibling = params;
+          if (params)
+              params->sibling = body;
+          else
+              id->sibling = body;
+
+          $$ = make_node(NT_FUNCION, ret);
+      }
+
+    | tipo_specifier T_ID T_LPAREN T_VOID T_RPAREN T_LBRACE bloque T_RBRACE
+      {
+          struct ast_node *ret = $1;
+          struct ast_node *id = make_leaf_str(NT_ID, $2);
+          struct ast_node *param = make_node(
+              NT_PARAMETRO,
+              make_leaf_int(NT_TIPO, T_VOID)
+          );
+          struct ast_node *body = make_node(NT_BLOQUE, $7);
+
+          ret->sibling = id;
+          id->sibling = param;
+          param->sibling = body;
+
+          $$ = make_node(NT_FUNCION, ret);
+      }
+
+    | tipo_specifier T_ID T_LPAREN parametros T_RPAREN T_LBRACE bloque T_RBRACE
+      {
+          struct ast_node *ret = $1;
+          struct ast_node *id = make_leaf_str(NT_ID, $2);
+          struct ast_node *params = $4;
+          struct ast_node *body = make_node(NT_BLOQUE, $7);
+
+          ret->sibling = id;
+          id->sibling = params;
+
+          // Enlaza el bloque al último parámetro
+          struct ast_node *last = params;
+          while (last->sibling != NULL)
+              last = last->sibling;
+          last->sibling = body;
+
+          $$ = make_node(NT_FUNCION, ret);
+      }
+    ;
+
+
 
 parametros:
-    parametro
-    { $$ = $1; }
-  | parametros T_COMMA parametro
-    { $$ = ast_append_sibling($1, $3); }
-  ;
+      parametro
+      { $$ = $1; }
+    | parametros T_COMMA parametro
+      { $$ = ast_append_sibling($1, $3); }
+    ;
 
 parametro:
-    tipo_specifier T_ID
-    { $$ = make_node(NT_PARAMETRO, $1); $$->child->sibling = make_leaf_str(NT_ID, $2); }
-  ;
+      tipo_specifier T_ID
+      { $$ = make_node(NT_PARAMETRO, $1);
+        $1->sibling = make_leaf_str(NT_ID, $2);
+      }
+    ;
+
 
 /* --- Blocks and Statements --- */
 bloque:
-    /* empty */
-    { $$ = NULL; }
-  | bloque sentencia
-    { $$ = ast_append_sibling($1, $2); }
-  ;
+      /* empty */
+      { $$ = NULL; }
+    | bloque sentencia
+      { $$ = ast_append_sibling($1, $2); }
+    ;
+
 
 sentencia:
     declaracion
