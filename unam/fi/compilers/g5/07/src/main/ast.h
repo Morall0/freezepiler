@@ -44,7 +44,7 @@ typedef struct ast_node {
     NodeType type;
     struct ast_node *child;   // First child
     struct ast_node *sibling; // Next sibling in a list
-
+    int lineno;
     // Leaf node value
     union {
         int intVal;
@@ -56,6 +56,8 @@ typedef struct ast_node {
 
 // Global AST root pointer
 extern struct ast_node *ast_root;
+char *node_type_to_string(NodeType type);
+
 
 struct ast_node *make_node(NodeType type, struct ast_node *child);
 struct ast_node *make_op_node(int op, struct ast_node *left, struct ast_node *right);

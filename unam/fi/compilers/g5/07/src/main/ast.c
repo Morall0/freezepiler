@@ -6,6 +6,8 @@
 
 // Global AST root definition
 struct ast_node *ast_root = NULL;
+extern int yylineno;
+
 
 struct ast_node *make_node(NodeType type, struct ast_node *child) {
     struct ast_node *node = (struct ast_node*) malloc(sizeof(struct ast_node));
@@ -16,6 +18,7 @@ struct ast_node *make_node(NodeType type, struct ast_node *child) {
     node->type = type;
     node->child = child;
     node->sibling = NULL;
+    node->lineno = yylineno;
     return node;
 }
 
