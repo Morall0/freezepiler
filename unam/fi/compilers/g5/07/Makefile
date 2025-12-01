@@ -1,8 +1,11 @@
 CC = gcc
-CFLAGS = -Wall -g -Isrc/main
+# LLVM flags extraídos automáticamente
+LLVM_CFLAGS := $(shell llvm-config --cflags)
+LLVM_LDFLAGS := $(shell llvm-config --ldflags --libs core mcjit native --system-libs)
+CFLAGS = -Wall -g -Isrc/main $(LLVM_CFLAGS)
 
 # Linker flags
-LDFLAGS = 
+LDFLAGS = $(LLVM_LDFLAGS)
 
 # Vars
 SRC_DIR = src/main
@@ -13,7 +16,8 @@ TARGET = $(BIN_DIR)/$(TARGET_NAME)
 SRCS = $(SRC_DIR)/main.c \
 		$(SRC_DIR)/lexer.c \
 		$(SRC_DIR)/ast.c \
-		$(SRC_DIR)/parser.tab.c
+		$(SRC_DIR)/parser.tab.c \
+		$(SRC_DIR)/codegen.c
 OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
 # Bison files
@@ -22,7 +26,7 @@ PARSER_C = $(SRC_DIR)/parser.tab.c
 PARSER_H = $(SRC_DIR)/parser.tab.h
 
 # Headers
-HDRS = $(SRC_DIR)/ast.h $(SRC_DIR)/lexer.h
+HDRS = $(SRC_DIR)/ast.h $(SRC_DIR)/lexer.h $(SRC_DIR)/codegen.h
 
 all: $(TARGET)
 
