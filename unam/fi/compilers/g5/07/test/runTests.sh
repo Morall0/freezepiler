@@ -38,22 +38,22 @@ for test_case in "${TESTS[@]}"; do
     echo -n "Probando $FILE... "
 
     # 1. Limpieza: Borrar ejecutable anterior para evitar falsos positivos
-    if [ -f "./mi_programa" ]; then
-        rm "./mi_programa"
+    if [ -f "./program" ]; then
+        rm "./program" "./out.o"
     fi
 
     # 2. Ejecutar tu compilador (Silenciamos el stdout para limpiar la pantalla, pero dejamos stderr)
     ./main "$SOURCE_PATH" > /dev/null
 
-    # 3. Verificar si tu compilador generó 'mi_programa'
-    if [ ! -f "./mi_programa" ]; then
+    # 3. Verificar si tu compilador generó 'program'
+    if [ ! -f "./program" ]; then
         echo -e "${RED}[ERROR DE COMPILACIÓN]${NC}"
-        echo -e "   -> No se generó 'mi_programa'."
+        echo -e "   -> No se generó 'program'."
         continue
     fi
 
     # 4. Ejecutar el programa generado
-    ./mi_programa
+    ./program
     EXIT_CODE=$?
 
     # 5. Comparar resultados
@@ -71,7 +71,7 @@ echo -e "${CYAN}=========================================${NC}"
 echo -e "Resultados Finales: ${GREEN}$PASS_COUNT${NC} de ${CYAN}$TOTAL_TESTS${NC} pruebas pasaron."
 
 if [ "$PASS_COUNT" -eq "$TOTAL_TESTS" ]; then
-    echo -e "${GREEN}¡FELICIDADES! TU COMPILADOR FUNCIONA PERFECTAMENTE.${NC}"
+    echo -e "${GREEN}EL COMPILADOR HA PASADO LAS PRUEBAS.${NC}"
 else
-    echo -e "${YELLOW}REVISA LOS ERRORES ARRIBA.${NC}"
+    echo -e "${YELLOW}REVISAR LOS ERRORES.${NC}"
 fi
